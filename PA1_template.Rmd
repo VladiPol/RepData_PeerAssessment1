@@ -1,20 +1,85 @@
-# Reproducible Research: Peer Assessment 1
+Reproducible Research - Peer Assessment 1.
+========================================================
 
+## Loading the dependencies
 
-## Loading and preprocessing the data
+```{r echo=TRUE} 
+  require("lattice")
+  require("plyr")
+  library(plyr)
+  library(lattice)  
+```
 
+## Loading and Processing the Data
 
+### 1. Load the data
+
+```{r,echo=TRUE}
+# Set the working directory
+setwd("D:/Archiv/Vladimir/projekt/course/coursera/Reproducible_Research/Projekt_1")
+# Read the data from csv-file
+df <- read.csv("activity.csv")
+# Summarized the data
+summary(df)
+```
+
+### 2. Process/transform the data if necessary
+
+The data column will be transformed into the standard Date format. 
+
+```{r echo=TRUE}
+  df$date <- as.Date(df$date)
+  summary(df)
+```
 
 ## What is mean total number of steps taken per day?
 
+### 1. Make a histogram of the total steps taken each day
 
+Creating the new data frame containing the sum of steps for each day. 
+
+```{r echo=TRUE}
+  tdf <- ddply(df, ~ date, summarise, totalsteps=sum(steps, na.rm=TRUE))
+  summary(tdf)
+```
+
+Then we simply plot a histogram of the total steps. We use breaks=10 for clarity. 
+
+```{r echo=TRUE}
+  hist(tdf$totalsteps, breaks=10, main="Histogram of Total Steps", xlab="Total Steps", ylab="Frequency")
+```
+
+### 2. Calculate and report the mean and median
+
+Using the data frame was created above.
+
+```{r echo=TRUE}
+  median(tdf$totalsteps)
+  mean(tdf$totalsteps)
+```
 
 ## What is the average daily activity pattern?
 
+### 1. Make a time series plot of average steps taken vs. interval 
 
+To plot this graph, it is necessary to summarise the mean steps accross each interval. This is a simple one-liner with plyr. 
 
-## Imputing missing values
+```{r echo=TRUE}
+  idf <- ddply(df, ~ interval, summarise, meansteps=mean(steps, na.rm=TRUE))
+  summary(idf)
+```
 
+Creating the plot.
 
+```{r echo=TRUE}
+  plot(idf$interval, idf$meansteps, type="l", main="", xlab="Interval", ylab="Average Steps")
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+### 2. Which 5-minute interval has the highest average number of steps? 
+
+The maximum value in the meansteps column and print the interval. 
+
+```{r echo=TRUE}
+  maxMeanSteps <- idf[which.max(idf$meansteps), ]
+  maxMeanSteps$interval
+```
