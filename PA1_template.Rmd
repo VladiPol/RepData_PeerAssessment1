@@ -25,7 +25,7 @@ summary(df)
 
 ### 2. Process/transform the data if necessary
 
-The data column will be transformed into the standard Date format. 
+The data column should be transformed into the standard Date format. 
 
 ```{r echo=TRUE}
   df$date <- as.Date(df$date)
@@ -39,14 +39,14 @@ The data column will be transformed into the standard Date format.
 Creating the new data frame containing the sum of steps for each day. 
 
 ```{r echo=TRUE}
-  tdf <- ddply(df, ~ date, summarise, totalsteps=sum(steps, na.rm=TRUE))
-  summary(tdf)
+  total_df <- ddply(df, ~ date, summarise, total_steps=sum(steps, na.rm=TRUE))
+  summary(total_df)
 ```
 
 Then we simply plot a histogram of the total steps. We use breaks=10 for clarity. 
 
 ```{r echo=TRUE}
-  hist(tdf$totalsteps, breaks=10, main="Histogram of Total Steps", xlab="Total Steps", ylab="Frequency")
+  hist(total_df$total_steps, breaks=10, main="Histogram of Total Steps", xlab="Total Steps", ylab="Frequency")
 ```
 
 ### 2. Calculate and report the mean and median
@@ -54,15 +54,15 @@ Then we simply plot a histogram of the total steps. We use breaks=10 for clarity
 Using the data frame was created above.
 
 ```{r echo=TRUE}
-  median(tdf$totalsteps)
-  mean(tdf$totalsteps)
+  median(total_df$total_steps)
+  mean(total_df$total_steps)
 ```
 
 ## What is the average daily activity pattern?
 
 ### 1. Make a time series plot of average steps taken vs. interval 
 
-To plot this graph, it is necessary to summarise the mean steps accross each interval. This is a simple one-liner with plyr. 
+To plot this graph, it is necessary to summarise the mean steps accross each interval.
 
 ```{r echo=TRUE}
   idf <- ddply(df, ~ interval, summarise, meansteps=mean(steps, na.rm=TRUE))
@@ -80,6 +80,119 @@ Creating the plot.
 The maximum value in the meansteps column and print the interval. 
 
 ```{r echo=TRUE}
-  maxMeanSteps <- idf[which.max(idf$meansteps), ]
-  maxMeanSteps$interval
+  max_meansteps <- idf[which.max(idf$meansteps), ]
+  max_meansteps$interval
 ```
+
+## Imputing missing values
+
+### 1. Calculate and report the total number of missing values in the data set. 
+
+The missing values in the dataset codes as NA. To calculate the total numbers of missing values will be used is.na() and sum() functions. 
+
+```{r echo=TRUE}
+  missing_values <- sum(is.na(df$steps))
+  missing_values
+```
+
+### 2. Strategy to fill in missing values
+
+To fill the missing values, will be used the strategy to insert the mean for each 5 minute interval. To accomplish this, is necessary to calculate first the mean for each interval over all days. After that with help of plyr the mean will be applied to each missing value. 
+
+```{r echo=TRUE}
+  impute.mean <- function(x) replace(x, is.na(x), mean(x, na.rm=TRUE))
+  imputed_df <- ddply(df, ~ interval, transform, steps = impute.mean(steps))
+  
+  #Sort the imputed data 
+  imputed_df <- df[with(imputed_df, order(date, interval)), ]
+```
+
+### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+The imputed_df data set, which was created above, has the missing data filled in. 
+
+```{r echo=TRUE}
+  summary(imputed_df)
+```
+
+### 4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.
+
+To plot a histogram and calculate mean and median on the imputed data set is has to be repeated the plotting and calculating steps above (s. Chapter "What is the average daily activity pattern").
+
+The first step is creating a new data frame with the total steps for each day. 
+
+```{r echo=TRUE}
+  imputed_tdf <- ddply(imputed_df, ~ date, summarise, totalsteps=sum(steps, na.rm=TRUE))
+  summary(total_df)
+```  
+
+After that plot a histogram for the imputed totals
+
+```{r echo=TRUE}
+  hist(imputed_tdf$totalsteps, breaks=10, main="Total Steps of Imputed Data", xlab="Total Steps", ylab="Frequency")
+```
+
+Finally calculate the mean and median.
+
+```{r echo=TRUE}
+  median(imputed_tdf$totalsteps)
+  mean(imputed_tdf$totalsteps)  
+```
+
+#### 4.1 Do these values differ from the estimates from the first part of the assignment? 
+
+Because of using the mean value of each interval to imoute the missing values, the the mean and median to differ from those above.
+
+#### 4.2 What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+The imputing method does not have have any effect. The summary and plot could verify this. 
+```{r echo=TRUE}
+  imputed_idf <- ddply(imputed_df, ~ interval, summarise, meansteps=mean(steps, na.rm=TRUE))
+  summary(imputed_idf)
+  plot(imputed_idf$interval, imputed_idf$meansteps, type="l", main="Imputed Data", xlab="Interval", ylab="Average Steps")
+```
+
+There is no any difference in the imputed data.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+### 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+First create a boolean factor, after that map the boolean values to "weekend" or "weekday".
+
+```{r echo=TRUE}
+  df$daytype <- weekdays(df$date) %in% c("Samstag", "Sonntag")
+  df$daytype <- mapvalues(df$daytype, from=c(TRUE, FALSE), to=c("weekend", "weekday"))
+  head(df)
+```
+
+### 2. Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+First of all calculate the mean steps for each time interval over weekends and weekdays separately. To do this the data will be splited into separate frames for weekends and weekdays and then the mean will be assigned to each interval using plyr. 
+
+```{r echo=TRUE}
+  weekdays_df <- df[df$daytype == "weekday", ]
+  weekdays_idf <- ddply(weekdays_df, ~ interval, summarise, meansteps=mean(steps, na.rm=TRUE))
+  weekdays_idf$daytype <- "weekday"
+  
+  weekends_df <- df[df$daytype == "weekend", ]
+  weekends_idf <- ddply(weekends_df, ~ interval, summarise, meansteps=mean(steps, na.rm=TRUE))
+  weekends_idf$daytype <- "weekend"
+```
+
+After that the data frames will be binded back together. 
+
+```{r echo=TRUE}
+  binded_df <- rbind(weekends_idf, weekdays_idf)
+  summary(binded_df)
+```
+
+Creating multi-panel plots the lattice system. 
+
+```{r echo=TRUE}
+  xyplot(meansteps ~ interval | daytype, data=binded_df, type="l", main="", xlab="Interval", ylab="Average Steps")
+```
+
+The plot of weekdays and weekends are not identical. There is a difference between both.
+
+It shows that normally on weekdays, people are more active in the mornings (maybe the way to work etc.) and sedentary for the day (maybe the work in the office). On the weeken the people are not so active in the mornings, because of the possible relaxing after the hard working week.
